@@ -409,8 +409,7 @@ void CBreakable::Precache( void )
 // play shard sound when func_breakable takes damage.
 // the more damage, the louder the shard sound.
 
-float CBreakable::CalcRatio(CBaseEntity* plocus, int mode )//AJH added 'mode' = ratio to return
-{
+ float CBreakable::CalcRatio(CBaseEntity* plocus, int mode ){//AJH added 'mode' = ratio to return
 	return pev->health/m_iInitialHealth;
 }
 
@@ -931,8 +930,7 @@ void CBreakable::Die( void )
 	if (m_iRespawnTime == -1)
 	{
 //		ALERT(at_debug,"Waiting for respawn trigger\n");
-		SetUse(&CBreakable:: RespawnUse );
-	}
+		SetUse(&CBreakable:: RespawnUse );	}
 	else if (m_iRespawnTime)
 	{
 //		ALERT(at_debug,"Respawning in %d secs\n",m_iRespawnTime);
@@ -1004,7 +1002,7 @@ public:
 	virtual int		Restore( CRestore &restore );
 
 	inline float MaxSpeed( void ) { return m_maxSpeed; }
-
+	
 	// breakables use an overridden takedamage
 	virtual int TakeDamage( entvars_t* pevInflictor, entvars_t* pevAttacker, float flDamage, int bitsDamageType );
 
@@ -1175,12 +1173,11 @@ void CPushable :: Move( CBaseEntity *pOther, int push )
 	else
 		factor = 0.25;
 
-	if (!push)
-		factor = factor*0.5;
+	if (!push) factor = factor*0.5;
 
 	pev->velocity.x += pevToucher->velocity.x * factor;
 	pev->velocity.y += pevToucher->velocity.y * factor;
-
+	
 	float length = sqrt( pev->velocity.x * pev->velocity.x + pev->velocity.y * pev->velocity.y );
 	if ( push && (length > MaxSpeed()) )
 	{

@@ -46,6 +46,9 @@ DLL_GLOBAL	short    		g_sModelIndexWExplosion;// holds the index for the underwa
 DLL_GLOBAL	short		g_sModelIndexBubbles;// holds the index for the bubbles model
 DLL_GLOBAL	short		g_sModelIndexBloodDrop;// holds the sprite index for the initial blood
 DLL_GLOBAL	short		g_sModelIndexBloodSpray;// holds the sprite index for splattered blood
+DLL_GLOBAL 	unsigned short 	m_usDecals;	//Decal event
+DLL_GLOBAL 	unsigned short 	m_usEfx;	//special effects event (rocket trail, explosion e.t.c.)	
+DLL_GLOBAL	unsigned short	m_usPlayEmptySound; //play empty sound on client side
 
 ItemInfo CBasePlayerItem::ItemInfoArray[MAX_WEAPONS];
 AmmoInfo CBasePlayerItem::AmmoInfoArray[MAX_AMMO_SLOTS];
@@ -75,6 +78,81 @@ int MaxAmmoCarry( int iszName )
 	ALERT( at_debug, "MaxAmmoCarry() doesn't recognize '%s'!\n", STRING( iszName ) );
 	return -1;
 }
+
+LINK_ENTITY_TO_CLASS( laser_spot, CLaserSpot );
+
+//=========================================================
+//=========================================================
+CLaserSpot *CLaserSpot::CreateSpot( void )
+{
+	CLaserSpot *pSpot = GetClassPtr( (CLaserSpot *)NULL );
+	pSpot->Spawn();
+
+	pSpot->pev->classname = MAKE_STRING("laser_spot");
+
+	return pSpot;
+}
+
+//=========================================================
+//=========================================================
+CLaserSpot *CLaserSpot::CreateSpot( const char* spritename )
+{
+	CLaserSpot *pSpot = CreateSpot();
+	SET_MODEL(ENT(pSpot->pev), spritename);
+	return pSpot;
+}
+
+//=========================================================
+//=========================================================
+void CLaserSpot::Spawn( void )
+{
+	Precache( );
+	pev->movetype = MOVETYPE_NONE;
+	pev->solid = SOLID_NOT;
+
+	pev->rendermode = kRenderGlow;
+	pev->renderfx = kRenderFxNoDissipation;
+	pev->renderamt = 255;
+
+	SET_MODEL(ENT(pev), "sprites/laserdot.spr");
+	UTIL_SetOrigin( this, pev->origin );
+};
+
+//=========================================================
+// Suspend- make the laser sight invisible. 
+//=========================================================
+void CLaserSpot::Suspend( float flSuspendTime )
+{
+	pev->effects |= EF_NODRAW;
+	
+	//LRC: -1 means suspend indefinitely
+	if (flSuspendTime == -1)
+	{
+		SetThink( NULL );
+	}
+	else
+	{
+		SetThink(&CLaserSpot:: Revive );
+		SetNextThink( flSuspendTime );
+	}
+}
+
+//=========================================================
+// Revive - bring a suspended laser sight back.
+//=========================================================
+void CLaserSpot::Revive( void )
+{
+	pev->effects &= ~EF_NODRAW;
+	SetThink( NULL );
+}
+
+void CLaserSpot::Precache( void )
+{
+	PRECACHE_MODEL("sprites/laserdot.spr");
+};
+
+//=========================================================
+//=========================================================
 
 	
 /*
@@ -309,7 +387,14 @@ void W_Precache(void)
 	memset( CBasePlayerItem::AmmoInfoArray, 0, sizeof(CBasePlayerItem::AmmoInfoArray) );
 	giAmmoIndex = 0;
 
-	UTIL_PrecacheOtherWeapon( "weapon_debug" );
+	// custom items...
+
+	// common world objects
+	UTIL_PrecacheOther( "item_suit" );
+	UTIL_PrecacheOther( "item_battery" );
+	UTIL_PrecacheOther( "item_antidote" );
+	UTIL_PrecacheOther( "item_security" );
+	UTIL_PrecacheOther( "item_longjump" );
 
 	// shotgun
 	UTIL_PrecacheOtherWeapon( "weapon_shotgun" );
@@ -328,63 +413,44 @@ void W_Precache(void)
 	UTIL_PrecacheOther( "ammo_9mmAR" );
 	UTIL_PrecacheOther( "ammo_ARgrenades" );
 
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	// python
 	UTIL_PrecacheOtherWeapon( "weapon_357" );
 	UTIL_PrecacheOther( "ammo_357" );
-#endif
-	
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
+
 	// gauss
 	UTIL_PrecacheOtherWeapon( "weapon_gauss" );
 	UTIL_PrecacheOther( "ammo_gaussclip" );
-#endif
 
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	// rpg
 	UTIL_PrecacheOtherWeapon( "weapon_rpg" );
 	UTIL_PrecacheOther( "ammo_rpgclip" );
-#endif
 
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	// crossbow
 	UTIL_PrecacheOtherWeapon( "weapon_crossbow" );
 	UTIL_PrecacheOther( "ammo_crossbow" );
-#endif
 
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	// egon
 	UTIL_PrecacheOtherWeapon( "weapon_egon" );
-#endif
 
 	// tripmine
 	UTIL_PrecacheOtherWeapon( "weapon_tripmine" );
 
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	// satchel charge
 	UTIL_PrecacheOtherWeapon( "weapon_satchel" );
-#endif
 
 	// hand grenade
 	UTIL_PrecacheOtherWeapon("weapon_handgrenade");
 
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	// squeak grenade
 	UTIL_PrecacheOtherWeapon( "weapon_snark" );
-#endif
 
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	// hornetgun
 	UTIL_PrecacheOtherWeapon( "weapon_hornetgun" );
-#endif
 
-
-#if !defined( OEM_BUILD ) && !defined( HLDEMO_BUILD )
 	if ( g_pGameRules->IsDeathmatch() )
 	{
 		UTIL_PrecacheOther( "weaponbox" );// container for dropped deathmatch weapons
 	}
-#endif
 
 	g_sModelIndexFireball = PRECACHE_MODEL ("sprites/zerogxplode.spr");// fireball
 	g_sModelIndexWExplosion = PRECACHE_MODEL ("sprites/WXplo1.spr");// underwater fireball
@@ -395,8 +461,10 @@ void W_Precache(void)
 
 	g_sModelIndexLaser = PRECACHE_MODEL( (char *)g_pModelNameLaser );
 	g_sModelIndexLaserDot = PRECACHE_MODEL("sprites/laserdot.spr");
-
-
+	m_usPlayEmptySound = PRECACHE_EVENT( 1, "events/tripfire.sc" );
+	m_usDecals = PRECACHE_EVENT(1, "events/glock2.sc");
+	m_usEfx = PRECACHE_EVENT(1, "events/mp52.sc");
+	
 	// used by explosions
 	PRECACHE_MODEL ("models/grenade.mdl");
 	PRECACHE_MODEL ("sprites/explode1.spr");
@@ -432,33 +500,27 @@ TYPEDESCRIPTION	CBasePlayerItem::m_SaveData[] =
 {
 	DEFINE_FIELD( CBasePlayerItem, m_pPlayer, FIELD_CLASSPTR ),
 	DEFINE_FIELD( CBasePlayerItem, m_pNext, FIELD_CLASSPTR ),
-	//DEFINE_FIELD( CBasePlayerItem, m_fKnown, FIELD_INTEGER ),Reset to zero on load
 	DEFINE_FIELD( CBasePlayerItem, m_iId, FIELD_INTEGER ),
-	// DEFINE_FIELD( CBasePlayerItem, m_iIdPrimary, FIELD_INTEGER ),
-	// DEFINE_FIELD( CBasePlayerItem, m_iIdSecondary, FIELD_INTEGER ),
 	DEFINE_FIELD( CBasePlayerWeapon, m_sMaster, FIELD_STRING ), //	AJH master entity for Lockable weapons
-
 };
 IMPLEMENT_SAVERESTORE( CBasePlayerItem, CBaseAnimating );
 
 
 TYPEDESCRIPTION	CBasePlayerWeapon::m_SaveData[] = 
 {
-#if defined( CLIENT_WEAPONS )
-	DEFINE_FIELD( CBasePlayerWeapon, m_flNextPrimaryAttack, FIELD_FLOAT ),
-	DEFINE_FIELD( CBasePlayerWeapon, m_flNextSecondaryAttack, FIELD_FLOAT ),
-	DEFINE_FIELD( CBasePlayerWeapon, m_flTimeWeaponIdle, FIELD_FLOAT ),
-#else	// CLIENT_WEAPONS
 	DEFINE_FIELD( CBasePlayerWeapon, m_flNextPrimaryAttack, FIELD_TIME ),
 	DEFINE_FIELD( CBasePlayerWeapon, m_flNextSecondaryAttack, FIELD_TIME ),
 	DEFINE_FIELD( CBasePlayerWeapon, m_flTimeWeaponIdle, FIELD_TIME ),
-#endif	// CLIENT_WEAPONS
+	DEFINE_FIELD( CBasePlayerWeapon, m_flTimeUpdate, FIELD_TIME ),
 	DEFINE_FIELD( CBasePlayerWeapon, m_iPrimaryAmmoType, FIELD_INTEGER ),
 	DEFINE_FIELD( CBasePlayerWeapon, m_iSecondaryAmmoType, FIELD_INTEGER ),
 	DEFINE_FIELD( CBasePlayerWeapon, m_iClip, FIELD_INTEGER ),
 	DEFINE_FIELD( CBasePlayerWeapon, m_iDefaultAmmo, FIELD_INTEGER ),
-//	DEFINE_FIELD( CBasePlayerWeapon, m_iClientClip, FIELD_INTEGER )	 , reset to zero on load so hud gets updated correctly
-//  DEFINE_FIELD( CBasePlayerWeapon, m_iClientWeaponState, FIELD_INTEGER ), reset to zero on load so hud gets updated correctly
+	DEFINE_FIELD( CBasePlayerWeapon, m_iChargeLevel, FIELD_INTEGER ),
+	DEFINE_FIELD( CBasePlayerWeapon, m_iOverloadLevel, FIELD_INTEGER ),
+	DEFINE_FIELD( CBasePlayerWeapon, m_fInAttack, FIELD_INTEGER ),
+	DEFINE_FIELD( CBasePlayerWeapon, PlayerHasSuit, FIELD_BOOLEAN ),	
+	DEFINE_FIELD( CBasePlayerWeapon, m_iBody, FIELD_INTEGER ),
 };
 
 IMPLEMENT_SAVERESTORE( CBasePlayerWeapon, CBasePlayerItem );
@@ -653,11 +715,7 @@ void CBasePlayerItem::Spawn(void)
 
 BOOL CanAttack( float attack_time, float curtime, BOOL isPredicted )
 {
-#if defined( CLIENT_WEAPONS )
-	if ( !isPredicted )
-#else
 	if ( 1 )
-#endif
 	{
 		return ( attack_time <= curtime ) ? TRUE : FALSE;
 	}
@@ -669,6 +727,13 @@ BOOL CanAttack( float attack_time, float curtime, BOOL isPredicted )
 
 void CBasePlayerWeapon::ItemPostFrame( void )
 {
+	RestoreBody();//restore body, skin and last animation
+	
+	// catch all
+	if ( ShouldWeaponIdle() )
+	{
+		WeaponIdle();
+	}
 	if ((m_fInReload) && ( m_pPlayer->m_flNextAttack <= UTIL_WeaponTimeBase() ) )
 	{
 		// complete the reload. 
@@ -683,7 +748,7 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 		m_fInReload = FALSE;
 	}
 
-	if ((m_pPlayer->pev->button & IN_ATTACK2) && CanAttack( m_flNextSecondaryAttack, gpGlobals->time, UseDecrement() ) )
+	if ((m_pPlayer->pev->button & IN_ATTACK2) && CanAttack( m_flNextSecondaryAttack, gpGlobals->time, 0 ) )
 	{
 		if ( pszAmmo2() && !m_pPlayer->m_rgAmmo[SecondaryAmmoIndex()] )
 		{
@@ -694,7 +759,7 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 		SecondaryAttack();
 		m_pPlayer->pev->button &= ~IN_ATTACK2;
 	}
-	else if ((m_pPlayer->pev->button & IN_ATTACK) && CanAttack( m_flNextPrimaryAttack, gpGlobals->time, UseDecrement() ) )
+	else if ((m_pPlayer->pev->button & IN_ATTACK) && CanAttack( m_flNextPrimaryAttack, gpGlobals->time, 0 ) )
 	{
 		if ( (m_iClip == 0 && pszAmmo1()) || (iMaxClip() == -1 && !m_pPlayer->m_rgAmmo[PrimaryAmmoIndex()] ) )
 		{
@@ -712,36 +777,42 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 	else if ( !(m_pPlayer->pev->button & (IN_ATTACK|IN_ATTACK2) ) )
 	{
 		// no fire buttons down
-
 		m_fFireOnEmpty = FALSE;
 
-		if ( !IsUseable() && m_flNextPrimaryAttack < ( UseDecrement() ? 0.0 : gpGlobals->time ) ) 
+		//play sequence holster/deploy if player find or lose suit
+		if( ((SUIT) && !PlayerHasSuit) || (!(SUIT) && PlayerHasSuit))
+		{
+			m_pPlayer->m_pActiveItem->Holster( );
+			m_pPlayer->QueueItem(this);
+			if (m_pPlayer->m_pActiveItem) 
+			{
+				m_pPlayer->m_pActiveItem->Deploy();
+				m_pPlayer->m_pActiveItem->UpdateItemInfo( );
+			}
+		}
+
+		if ( !IsUseable() && m_flNextPrimaryAttack < gpGlobals->time ) 
 		{
 			// weapon isn't useable, switch.
 			if ( !(iFlags() & ITEM_FLAG_NOAUTOSWITCHEMPTY) && g_pGameRules->GetNextBestWeapon( m_pPlayer, this ) )
 			{
-				m_flNextPrimaryAttack = ( UseDecrement() ? 0.0 : gpGlobals->time ) + 0.3;
+				m_flNextPrimaryAttack = gpGlobals->time + 0.3;
 				return;
 			}
 		}
 		else
 		{
 			// weapon is useable. Reload if empty and weapon has waited as long as it has to after firing
-			if ( m_iClip == 0 && !(iFlags() & ITEM_FLAG_NOAUTORELOAD) && m_flNextPrimaryAttack < ( UseDecrement() ? 0.0 : gpGlobals->time ) )
+			if ( m_iClip == 0 && !(iFlags() & ITEM_FLAG_NOAUTORELOAD) && m_flNextPrimaryAttack < gpGlobals->time )
 			{
 				Reload();
 				return;
 			}
 		}
 
+		ResetEmptySound();
 		WeaponIdle( );
 		return;
-	}
-	
-	// catch all
-	if ( ShouldWeaponIdle() )
-	{
-		WeaponIdle();
 	}
 }
 
@@ -777,7 +848,7 @@ void CBasePlayerItem::Kill( void )
 	SetNextThink( 0.1 );
 }
 
-void CBasePlayerItem::Holster( int skiplocal /* = 0 */ )
+void CBasePlayerItem::Holster( )
 { 
 	m_pPlayer->pev->viewmodel = 0; 
 	m_pPlayer->pev->weaponmodel = 0;
@@ -794,6 +865,7 @@ void CBasePlayerItem::AttachToPlayer ( CBasePlayer *pPlayer )
 	pev->owner = pPlayer->edict();
 	SetNextThink( 0.1 );
 	SetTouch( NULL );
+	SetThink(NULL);
 }
 
 //LRC
@@ -803,8 +875,7 @@ void CBasePlayerWeapon :: SetNextThink( float delay )
 	pev->nextthink = m_fNextThink;
 }
 
-
-// CALLED THROUGH the newly-touched weapon's instance. The existing player weapon is pOriginal
+/// CALLED THROUGH the newly-touched weapon's instance. The existing player weapon is pOriginal
 int CBasePlayerWeapon::AddDuplicate( CBasePlayerItem *pOriginal )
 {
 	if (!UTIL_IsMasterTriggered(m_sMaster, m_pPlayer))		//
@@ -838,8 +909,12 @@ int CBasePlayerWeapon::AddToPlayer( CBasePlayer *pPlayer )
 	}
 
 
-	if (bResult)
+	if (bResult)//generic message for all weapons
 	{
+		MESSAGE_BEGIN(MSG_ONE, gmsgWeapPickup, NULL, pPlayer->pev);
+			WRITE_BYTE(m_iId);
+		MESSAGE_END();
+
 		return AddWeapon( );
 	}
 	return FALSE;
@@ -853,8 +928,7 @@ int CBasePlayerWeapon::UpdateClientData( CBasePlayer *pPlayer )
 	{
 		if ( pPlayer->m_fOnTarget )
 			state = WEAPON_IS_ONTARGET;
-		else
-			state = 1;
+		else	state = 1;
 	}
 
 	// Forcing send of all data!
@@ -874,9 +948,7 @@ int CBasePlayerWeapon::UpdateClientData( CBasePlayer *pPlayer )
 	}
 
 	// If the ammo, state, or fov has changed, update the weapon
-	if ( m_iClip != m_iClientClip || 
-		 state != m_iClientWeaponState || 
-		 pPlayer->m_iFOV != pPlayer->m_iClientFOV )
+	if ( m_iClip != m_iClientClip || state != m_iClientWeaponState || pPlayer->m_iFOV != pPlayer->m_iClientFOV )
 	{
 		bSend = TRUE;
 	}
@@ -894,26 +966,18 @@ int CBasePlayerWeapon::UpdateClientData( CBasePlayer *pPlayer )
 		pPlayer->m_fWeapon = TRUE;
 	}
 
-	if ( m_pNext )
-		m_pNext->UpdateClientData( pPlayer );
+	if ( m_pNext ) m_pNext->UpdateClientData( pPlayer );
 
 	return 1;
 }
 
 
-void CBasePlayerWeapon::SendWeaponAnim( int iAnim, int skiplocal, int body )
+void CBasePlayerWeapon::SendWeaponAnim( int iAnim )
 {
-	if ( UseDecrement() )
-		skiplocal = 1;
-	else
-		skiplocal = 0;
-
 	m_pPlayer->pev->weaponanim = iAnim;
 
-#if defined( CLIENT_WEAPONS )
-	if ( skiplocal && ENGINE_CANSKIP( m_pPlayer->edict() ) )
-		return;
-#endif
+	//calculate additional body for special effects
+	pev->body = (pev->body % NUM_HANDS) + NUM_HANDS * m_iBody;
 
 	MESSAGE_BEGIN( MSG_ONE, SVC_WEAPONANIM, NULL, m_pPlayer->pev );
 		WRITE_BYTE( iAnim );						// sequence number
@@ -924,7 +988,6 @@ void CBasePlayerWeapon::SendWeaponAnim( int iAnim, int skiplocal, int body )
 BOOL CBasePlayerWeapon :: AddPrimaryAmmo( int iCount, char *szName, int iMaxClip, int iMaxCarry )
 {
 	int iIdAmmo;
-
 	if (iMaxClip < 1)
 	{
 		m_iClip = -1;
@@ -1016,59 +1079,100 @@ BOOL CBasePlayerWeapon :: CanDeploy( void )
 	return TRUE;
 }
 
-BOOL CBasePlayerWeapon :: DefaultDeploy( char *szViewModel, char *szWeaponModel, int iAnim, char *szAnimExt, int skiplocal /* = 0 */, int body )
+BOOL CBasePlayerWeapon :: DefaultDeploy( char *szViewModel, char *szWeaponModel, int iAnim, char *szAnimExt, float fDrawTime )
 {
-	if (!CanDeploy( ))
-		return FALSE;
+	if ( SUIT ) pev->body = PlayerHasSuit = TRUE;
+	else  pev->body = PlayerHasSuit = FALSE;
 
+	if (IsMultiplayer() && !CanDeploy()) return FALSE;
+	m_iLastSkin = -1;//reset last skin info for new weapon
+	b_Restored = TRUE;//no need update if deploy
 	m_pPlayer->TabulateAmmo();
 	m_pPlayer->pev->viewmodel = MAKE_STRING(szViewModel);
 	m_pPlayer->pev->weaponmodel = MAKE_STRING(szWeaponModel);
 	strcpy( m_pPlayer->m_szAnimExtention, szAnimExt );
-	SendWeaponAnim( iAnim, skiplocal, body );
+	SendWeaponAnim( iAnim );
 
-	m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase() + 0.5;
-	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 1.0;
+	m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase() + fDrawTime;//Custom time for deploy
+	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + fDrawTime + 0.5; //Make half-second delay beetwen draw and idle animation
 
 	return TRUE;
 }
 
 
-BOOL CBasePlayerWeapon :: DefaultReload( int iClipSize, int iAnim, float fDelay, int body )
+BOOL CBasePlayerWeapon :: DefaultReload( int iClipSize, int iAnim, float fDelay )
 {
 	if (m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] <= 0)
 		return FALSE;
 
 	int j = min(iClipSize - m_iClip, m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]);	
 
-	if (j == 0)
-		return FALSE;
+	if (j == 0) return FALSE;
 
 	m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase() + fDelay;
 
-	//!!UNDONE -- reload sound goes here !!!
-	SendWeaponAnim( iAnim, UseDecrement() ? 1 : 0 );
+	SendWeaponAnim( iAnim );
 
 	m_fInReload = TRUE;
 
-	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 3;
+	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + fDelay + 0.5;
 	return TRUE;
 }
 
-BOOL CBasePlayerWeapon :: PlayEmptySound( void )
+BOOL CBasePlayerWeapon :: PlayEmptySound( int iSoundType )
 {
+	//play custom empty sound
+	//0 - default cock sound
+	//1 - electro sound
+	//2 - electro sound 2
+	//3 - flashlight sound
+	//4 - no sound
+
 	if (m_iPlayEmptySound)
 	{
-		EMIT_SOUND(ENT(m_pPlayer->pev), CHAN_WEAPON, "weapons/357_cock1.wav", 0.8, ATTN_NORM);
+		PLAYBACK_EVENT_FULL( 0, m_pPlayer->edict(), m_usPlayEmptySound, 0.0, (float *)&g_vecZero, (float *)&g_vecZero, 0.0, 0.0, iSoundType, 0, 0, 0 );
 		m_iPlayEmptySound = 0;
-		return 0;
+		return FALSE;
 	}
-	return 0;
+	return FALSE;
+}
+
+//restore pev->body and thirdperson animation after save\load
+void CBasePlayerWeapon :: RestoreBody ( void )
+{
+	//Global function. restored and just set pev->body & pev->skin 
+	//after each save\load for weapons. For use - insert her in WeaponIdle()
+	//e.g. see in glock.cpp - RestoreBody ("onehanded");
+
+	if(!b_Restored )
+	{         //calculate additional body for special effects
+		pev->body = (pev->body % NUM_HANDS) + NUM_HANDS * m_iBody;
+		MESSAGE_BEGIN( MSG_ONE, gmsgSetBody, NULL, m_pPlayer->pev );
+			WRITE_BYTE( pev->body ); //weaponmodel body
+		MESSAGE_END();
+
+		//restore idle animation and hands position
+		m_flTimeWeaponIdle = UTIL_WeaponTimeBase();
+
+		//saved in CBasePlayer
+		//strcpy( m_pPlayer->m_szAnimExtention, szAnimExt );
+                    
+		b_Restored = TRUE;//reset after next save/load
+	}
+
+	//update weapon skin
+	if( m_iLastSkin != pev->skin)
+	{
+		MESSAGE_BEGIN( MSG_ONE, gmsgSetSkin, NULL, m_pPlayer->pev );
+			WRITE_BYTE( pev->skin ); //weaponmodel skin.
+		MESSAGE_END();
+		m_iLastSkin = pev->skin;
+	}
 }
 
 void CBasePlayerWeapon :: ResetEmptySound( void )
 {
-	m_iPlayEmptySound = 1;
+	m_iPlayEmptySound = 1;//reset empty sound
 }
 
 //=========================================================
@@ -1085,7 +1189,7 @@ int CBasePlayerWeapon::SecondaryAmmoIndex( void )
 	return -1;
 }
 
-void CBasePlayerWeapon::Holster( int skiplocal /* = 0 */ )
+void CBasePlayerWeapon::Holster( )
 { 
 	m_fInReload = FALSE; // cancel any reload in progress.
 	m_pPlayer->pev->viewmodel = 0; 
@@ -1598,58 +1702,3 @@ void CBasePlayerWeapon::PrintState( void )
 
 	ALERT( at_debug, "m_iclip:  %i\n", m_iClip );
 }
-
-
-TYPEDESCRIPTION	CRpg::m_SaveData[] = 
-{
-	DEFINE_FIELD( CRpg, m_fSpotActive, FIELD_INTEGER ),
-	DEFINE_FIELD( CRpg, m_cActiveRockets, FIELD_INTEGER ),
-};
-IMPLEMENT_SAVERESTORE( CRpg, CBasePlayerWeapon );
-
-TYPEDESCRIPTION	CRpgRocket::m_SaveData[] = 
-{
-	DEFINE_FIELD( CRpgRocket, m_flIgniteTime, FIELD_TIME ),
-	DEFINE_FIELD( CRpgRocket, m_pLauncher, FIELD_CLASSPTR ),
-};
-IMPLEMENT_SAVERESTORE( CRpgRocket, CGrenade );
-
-TYPEDESCRIPTION	CShotgun::m_SaveData[] = 
-{
-	DEFINE_FIELD( CShotgun, m_flNextReload, FIELD_TIME ),
-	DEFINE_FIELD( CShotgun, m_fInSpecialReload, FIELD_INTEGER ),
-	DEFINE_FIELD( CShotgun, m_flNextReload, FIELD_TIME ),
-	// DEFINE_FIELD( CShotgun, m_iShell, FIELD_INTEGER ),
-	DEFINE_FIELD( CShotgun, m_flPumpTime, FIELD_TIME ),
-};
-IMPLEMENT_SAVERESTORE( CShotgun, CBasePlayerWeapon );
-
-TYPEDESCRIPTION	CGauss::m_SaveData[] = 
-{
-	DEFINE_FIELD( CGauss, m_fInAttack, FIELD_INTEGER ),
-//	DEFINE_FIELD( CGauss, m_flStartCharge, FIELD_TIME ),
-//	DEFINE_FIELD( CGauss, m_flPlayAftershock, FIELD_TIME ),
-//	DEFINE_FIELD( CGauss, m_flNextAmmoBurn, FIELD_TIME ),
-	DEFINE_FIELD( CGauss, m_fPrimaryFire, FIELD_BOOLEAN ),
-};
-IMPLEMENT_SAVERESTORE( CGauss, CBasePlayerWeapon );
-
-TYPEDESCRIPTION	CEgon::m_SaveData[] = 
-{
-//	DEFINE_FIELD( CEgon, m_pBeam, FIELD_CLASSPTR ),
-//	DEFINE_FIELD( CEgon, m_pNoise, FIELD_CLASSPTR ),
-//	DEFINE_FIELD( CEgon, m_pSprite, FIELD_CLASSPTR ),
-	DEFINE_FIELD( CEgon, m_shootTime, FIELD_TIME ),
-	DEFINE_FIELD( CEgon, m_fireState, FIELD_INTEGER ),
-	DEFINE_FIELD( CEgon, m_fireMode, FIELD_INTEGER ),
-	DEFINE_FIELD( CEgon, m_shakeTime, FIELD_TIME ),
-	DEFINE_FIELD( CEgon, m_flAmmoUseTime, FIELD_TIME ),
-};
-IMPLEMENT_SAVERESTORE( CEgon, CBasePlayerWeapon );
-
-TYPEDESCRIPTION	CSatchel::m_SaveData[] = 
-{
-	DEFINE_FIELD( CSatchel, m_chargeReady, FIELD_INTEGER ),
-};
-IMPLEMENT_SAVERESTORE( CSatchel, CBasePlayerWeapon );
-

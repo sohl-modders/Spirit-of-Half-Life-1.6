@@ -9,6 +9,8 @@
 
 #include "hud.h"
 #include "cl_util.h"
+#include "windows.h"
+#include "gl/gl.h"
 
 // Triangle rendering apis are in gEngfuncs.pTriAPI
 
@@ -36,8 +38,9 @@ extern "C"
 extern float g_fFogColor[4];
 extern float g_fStartDist;
 extern float g_fEndDist;
-extern int g_iWaterLevel;
+extern vec3_t FogColor;
 extern vec3_t v_origin;
+int g_iWaterLevel;
 
 int UseTexture(HSPRITE &hsprSpr, char * str)
 {
@@ -208,25 +211,20 @@ void Draw_Triangles( void )
 
 #endif
 
-void BlackFog ( void )
-{
-	//Not in water and we want fog.
-	static float fColorBlack[3] = {0,0,0};
-	bool bFog = g_iWaterLevel < 2 && g_fStartDist > 0 && g_fEndDist > 0;
-	if (bFog)
-		gEngfuncs.pTriAPI->Fog ( fColorBlack, g_fStartDist, g_fEndDist, bFog );
-	else
-		gEngfuncs.pTriAPI->Fog ( g_fFogColor, g_fStartDist, g_fEndDist, bFog );
-}
-
 void RenderFog ( void )
 {
-	//Not in water and we want fog.
+	float g_fFogColor[4] = { FogColor.x, FogColor.y, FogColor.z, 1.0 };
 	bool bFog = g_iWaterLevel < 2 && g_fStartDist > 0 && g_fEndDist > 0;
 	if (bFog)
-		gEngfuncs.pTriAPI->Fog ( g_fFogColor, g_fStartDist, g_fEndDist, bFog );
-//	else
-//		gEngfuncs.pTriAPI->Fog ( g_fFogColor, 10000, 10001, 0 );
+	{
+		glEnable(GL_FOG);
+//		glFogf(GL_FOG_DENSITY, 0.0025);
+		glFogi(GL_FOG_MODE, GL_LINEAR);
+		glFogfv(GL_FOG_COLOR, g_fFogColor);
+		glFogf(GL_FOG_START, g_fStartDist);
+		glFogf(GL_FOG_END, g_fEndDist);
+		glHint(GL_FOG_HINT, GL_NICEST);
+	}
 }
 
 /*
@@ -429,8 +427,6 @@ extern ParticleSystemManager* g_pParticleSystems; // LRC
 
 void DLLEXPORT HUD_DrawTransparentTriangles( void )
 {
-	BlackFog();
-
    	//22/03/03 LRC: shiny surfaces
 	if (gHUD.m_pShinySurface)
 		gHUD.m_pShinySurface->DrawAll(v_origin);

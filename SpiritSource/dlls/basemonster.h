@@ -111,8 +111,6 @@ public:
 	virtual int		Save( CSave &save ); 
 	virtual int		Restore( CRestore &restore );
 
-	virtual STATE GetState( void ) { return (pev->deadflag == DEAD_DEAD)?STATE_OFF:STATE_ON; };
-	
 	static	TYPEDESCRIPTION m_SaveData[];
 
 	void KeyValue( KeyValueData *pkvd );
@@ -195,9 +193,8 @@ public:
 		virtual Schedule_t *GetScheduleOfType( int Type );
 		virtual Schedule_t *GetSchedule( void );
 		virtual void ScheduleChange( void ) {}
-//		virtual int CanPlaySequence( void ) { return ((m_pCine == NULL) && (m_MonsterState == MONSTERSTATE_NONE || m_MonsterState == MONSTERSTATE_IDLE || m_IdealMonsterState == MONSTERSTATE_IDLE)); }
-		virtual int CanPlaySequence( int interruptFlags );
-//		virtual int CanPlaySequence( BOOL fDisregardState, int interruptLevel );
+		virtual int CanPlaySequence( void ) { return ((m_pCine == NULL) && (m_MonsterState == MONSTERSTATE_NONE || m_MonsterState == MONSTERSTATE_IDLE || m_IdealMonsterState == MONSTERSTATE_IDLE)); }
+		virtual int CanPlaySequence( BOOL fDisregardState, int interruptLevel );
 		virtual int CanPlaySentence( BOOL fDisregardState ) { return IsAlive(); }
 		virtual void PlaySentence( const char *pszSentence, float duration, float volume, float attenuation );
 		virtual void PlayScriptedSentence( const char *pszSentence, float duration, float volume, float attenuation, BOOL bConcurrent, CBaseEntity *pListener );
@@ -345,14 +342,9 @@ public:
 	CBaseEntity* DropItem ( char *pszItemName, const Vector &vecPos, const Vector &vecAng );// drop an item.
 
 	//LRC
-	virtual float	CalcRatio( CBaseEntity *pLocus, int mode  )//AJH added 'mode' = ratio to return
+	float	CalcRatio( CBaseEntity *pLocus )
 	{
-		//ALERT(at_console, "monster CR: %f/%f = %f\n", pev->health, pev->max_health, pev->health / pev->max_health);
-		switch(mode){	//AJH pretty trivial switch statement! Add more cases later.
-		case 1:{
-			return pev->velocity.Length();
-		}break;
-		}
+		/*ALERT(at_console, "monster CR: %f/%f = %f\n", pev->health, pev->max_health, pev->health / pev->max_health);*/
 		return pev->health / pev->max_health;
 	}
 };

@@ -34,6 +34,7 @@
 #include "demo_api.h"
 #include "vgui_scorepanel.h"
 #include "rain.h"
+#include "com_weapons.h"
 
 class CHLVoiceStatusHelper : public IVoiceStatusHelper
 {
@@ -134,6 +135,32 @@ int __MsgFunc_RainData(const char *pszName, int iSize, void *pbuf)
 	return gHUD.MsgFunc_RainData( pszName, iSize, pbuf );
 }
 
+//change body for weapon models
+int __MsgFunc_SetBody(const char *pszName, int iSize, void *pbuf)
+{
+	gHUD.MsgFunc_SetBody( pszName, iSize, pbuf );
+	return 1;
+}
+
+//change skin for weapon models
+int __MsgFunc_SetSkin(const char *pszName, int iSize, void *pbuf)
+{
+	gHUD.MsgFunc_SetSkin( pszName, iSize, pbuf );
+	return 1;
+}
+
+int __MsgFunc_SetMirror(const char *pszName, int iSize, void *pbuf)
+{
+	gHUD.MsgFunc_SetMirror( pszName, iSize, pbuf );
+	return 1;
+}
+
+int __MsgFunc_ResetMirror(const char *pszName, int iSize, void *pbuf)
+{
+	gHUD.MsgFunc_ResetMirror( pszName, iSize, pbuf );
+	return 1;
+}
+
 int __MsgFunc_ResetHUD(const char *pszName, int iSize, void *pbuf)
 {
 #ifdef ENGINE_DEBUG
@@ -181,12 +208,6 @@ int __MsgFunc_PlayMP3(const char *pszName, int iSize, void *pbuf )
 int __MsgFunc_CamData(const char *pszName, int iSize, void *pbuf)
 {
 	gHUD.MsgFunc_CamData( pszName, iSize, pbuf );
-	return 1;
-}
-
-int __MsgFunc_Inventory(const char *pszName, int iSize, void *pbuf)
-{
-	gHUD.MsgFunc_Inventory( pszName, iSize, pbuf );
 	return 1;
 }
 	
@@ -357,8 +378,10 @@ void CHud :: Init( void )
 	HOOK_MESSAGE( SetSky ); //LRC
 	HOOK_MESSAGE( CamData );//G-Cont. for new camera style 	
 	HOOK_MESSAGE( RainData );//G-Cont. for rain control 
-	HOOK_MESSAGE( Inventory ); //AJH Inventory system
-
+	HOOK_MESSAGE( SetBody );//change body for view weapon model
+	HOOK_MESSAGE( SetSkin );//change skin for view weapon model
+	HOOK_MESSAGE( SetMirror );
+	HOOK_MESSAGE( ResetMirror );
 	//KILLAR: MP3	
 	if(gMP3.Initialize())
 	{
@@ -394,14 +417,6 @@ void CHud :: Init( void )
 	CVAR_CREATE( "hud_classautokill", "1", FCVAR_ARCHIVE | FCVAR_USERINFO );		// controls whether or not to suicide immediately on TF class switch
 	CVAR_CREATE( "hud_takesshots", "0", FCVAR_ARCHIVE );		// controls whether or not to automatically take screenshots at the end of a round
 
-	//start glow effect --FragBait0
-	CVAR_CREATE("r_glow", "0", FCVAR_ARCHIVE );
-	//CVAR_CREATE("r_glowmode", "0", FCVAR_ARCHIVE ); //AJH this is now redundant
-	CVAR_CREATE("r_glowstrength", "1", FCVAR_ARCHIVE );
-	CVAR_CREATE("r_glowblur", "4", FCVAR_ARCHIVE );
-	CVAR_CREATE("r_glowdark", "2", FCVAR_ARCHIVE );
-	//end glow effect
-
 	viewEntityIndex = 0; // trigger_viewset stuff
 	viewFlags = 0;
 	m_iLogo = 0;
@@ -410,6 +425,7 @@ void CHud :: Init( void )
 	m_iHUDColor = 0x00FFA000; //255,160,0 -- LRC
 	
 	CVAR_CREATE( "zoom_sensitivity_ratio", "1.2", 0 );
+	CVAR_CREATE("r_shadows", "0", FCVAR_ARCHIVE );
 	default_fov = CVAR_CREATE( "default_fov", "90", 0 );
 	m_pCvarStealMouse = CVAR_CREATE( "hud_capturemouse", "1", FCVAR_ARCHIVE );
 	m_pCvarDraw = CVAR_CREATE( "hud_draw", "1", FCVAR_ARCHIVE );
@@ -744,10 +760,6 @@ int CHud::MsgFunc_SetFOV(const char *pszName,  int iSize, void *pbuf)
 	int newfov = READ_BYTE();
 	int def_fov = CVAR_GET_FLOAT( "default_fov" );
 
-	//Weapon prediction already takes care of changing the fog. ( g_lastFOV ).
-	if ( cl_lw && cl_lw->value )
-		return 1;
-
 	g_lastFOV = newfov;
 
 	if ( newfov == 0 )
@@ -811,5 +823,3 @@ float CHud::GetSensitivity( void )
 {
 	return m_flMouseSensitivity;
 }
-
-

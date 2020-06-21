@@ -32,11 +32,12 @@
 
 #define SCRIPT_BREAK_CONDITIONS		(bits_COND_LIGHT_DAMAGE|bits_COND_HEAVY_DAMAGE)
 
-//LRC - rearranged into flags
-#define SS_INTERRUPT_IDLE		0x0
-#define SS_INTERRUPT_ALERT		0x1
-#define SS_INTERRUPT_ANYSTATE	0x2
-#define SS_INTERRUPT_SCRIPTS	0x4
+enum SS_INTERRUPT
+{
+	SS_INTERRUPT_IDLE = 0,
+	SS_INTERRUPT_BY_NAME,
+	SS_INTERRUPT_AI,
+};
 
 // when a monster finishes an AI scripted sequence, we can choose
 // a schedule to place them in. These defines are the aliases to
@@ -79,17 +80,15 @@ public:
 	// (Do a precise attack if we'll be turning to face the target, but we haven't just walked to the target.)
 	BOOL PreciseAttack( void )
 	{
-	//	if (m_fTurnType != 1) { ALERT(at_console,"preciseattack fails check 1\n"); return FALSE; }
-	//	if (m_fMoveTo == 0) { ALERT(at_console,"preciseattack fails check 2\n"); return FALSE; }
-	//	if (m_fMoveTo != 5 && m_iszAttack == 0) { ALERT(at_console,"preciseattack fails check 3\n"); return FALSE; }
-	//	ALERT(at_console,"preciseattack passes!\n");
-	//	return TRUE;
-		return m_fTurnType == 1 && ( m_fMoveTo == 5 || (m_fMoveTo != 0 && !FStrEq(STRING(m_iszAttack), STRING(m_iszMoveTarget)) ));
+		if (m_fMoveTo == 0) { ALERT(at_console,"preciseattack fails check 2\n"); return FALSE; }
+		if (m_fMoveTo != 5 && m_iszAttack == 0) { ALERT(at_console,"preciseattack fails check 3\n"); return FALSE; }
+		return TRUE;
 	};
 
 	void ReleaseEntity( CBaseMonster *pEntity );
 	void CancelScript( void );
 	virtual BOOL StartSequence( CBaseMonster *pTarget, int iszSeq, BOOL completeOnEmpty );
+	BOOL CCineMonster :: FCanOverrideState( void );
 	void SequenceDone ( CBaseMonster *pMonster );
 	virtual void FixScriptMonsterSchedule( CBaseMonster *pMonster );
 	BOOL	CanInterrupt( void );
@@ -103,15 +102,10 @@ public:
 	int m_iszMoveTarget; // entity to move to
 	int m_iszFireOnBegin; // entity to fire when the sequence _starts_.
 	int m_fMoveTo;
-	int m_fTurnType;
 	int m_fAction;
 	int m_iFinishSchedule;
 	float m_flRadius;		// range to search
-//LRC- this does nothing!!	float m_flRepeat;	// repeat rate
-	int m_iRepeats; //LRC - number of times to repeat the animation
-	int m_iRepeatsLeft; //LRC
-	float m_fRepeatFrame; //LRC
-	int m_iPriority; //LRC
+	float m_flRepeat;	// repeat rate
 
 	int m_iDelay;
 	float m_startTime;
@@ -119,7 +113,6 @@ public:
 	int	m_saved_movetype;
 	int	m_saved_solid;
 	int m_saved_effects;
-//	Vector m_vecOrigOrigin;
 	BOOL m_interruptable;
 };
 

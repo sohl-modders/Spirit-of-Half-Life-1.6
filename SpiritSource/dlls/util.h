@@ -452,7 +452,11 @@ extern DLL_GLOBAL int			g_Language;
 #define SVC_ROOMTYPE		37
 #define	SVC_DIRECTOR		51
 
-
+// camera flags
+#define	CAMERA_ON		1
+#define	DRAW_HUD		2
+#define	INVERSE_X		4
+#define	MONSTER_VIEW	8
 
 // triggers
 #define	SF_TRIGGER_ALLOWMONSTERS	1// monsters allowed to fire this trigger
@@ -577,3 +581,6 @@ CBaseEntity* UTIL_FollowReference( CBaseEntity* pStartEntity, const char* szName
 
 // for trigger_viewset
 int HaveCamerasInPVS( edict_t* edict );
+BOOL IsMultiplayer ( void );
+Vector UTIL_MirrorVector( Vector angles );
+Vector UTIL_MirrorPos ( Vector endpos );

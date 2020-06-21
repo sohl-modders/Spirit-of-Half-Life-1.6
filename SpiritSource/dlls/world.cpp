@@ -43,8 +43,7 @@ DLL_GLOBAL edict_t				*g_pBodyQueueHead;
 CGlobalState					gGlobalState;
 extern DLL_GLOBAL	int			gDisplayTitle;
 
-extern void W_Precache(void); //weapon precache - weapons.cpp
-extern void I_Precache(void); //item precache - items.cpp
+extern void W_Precache(void);
 
 //
 // This must match the list in util.h
@@ -551,7 +550,6 @@ void CWorld :: Precache( void )
 
 // player precaches     
 	W_Precache ();									// get weapon precaches
-	I_Precache ();	// get Inventory Item precaches
 
 	ClientPrecache();
 
@@ -582,7 +580,6 @@ void CWorld :: Precache( void )
 	PRECACHE_SOUND ("weapons/ric5.wav");
 
 	PRECACHE_MODEL( "sprites/null.spr" ); //LRC
-
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
 //
@@ -749,21 +746,6 @@ void CWorld :: KeyValue( KeyValueData *pkvd )
 	else if ( FStrEq(pkvd->szKeyName, "allow_sp_gjump") )
 	{
 		g_allowGJump = atoi(pkvd->szValue);
-		pkvd->fHandled = TRUE;
-	}
-	else if ( FStrEq(pkvd->szKeyName, "timed_damage") )
-	{
-		CVAR_SET_FLOAT( "timed_damage", atof(pkvd->szValue) );
-		pkvd->fHandled = TRUE;
-	}
-	else if ( FStrEq(pkvd->szKeyName, "max_medkit") )
-	{
-		CVAR_SET_FLOAT( "max_medkit", atof(pkvd->szValue) );
-		pkvd->fHandled = TRUE;
-	}
-	else if ( FStrEq(pkvd->szKeyName, "max_cameras") )
-	{
-		CVAR_SET_FLOAT( "max_cameras", atof(pkvd->szValue) );
 		pkvd->fHandled = TRUE;
 	}
 

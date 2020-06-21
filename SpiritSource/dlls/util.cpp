@@ -35,11 +35,14 @@
 
 float UTIL_WeaponTimeBase( void )
 {
-#if defined( CLIENT_WEAPONS )
-	return 0.0;
-#else
 	return gpGlobals->time;
-#endif
+}
+
+BOOL IsMultiplayer ( void )
+{
+	if( g_pGameRules->IsMultiplayer() ) 
+		return TRUE;
+	return FALSE;
 }
 
 static unsigned int glSeed = 0; 
@@ -1597,7 +1600,7 @@ void UTIL_DecalTrace( TraceResult *pTrace, int decalNumber )
 			index -= 256;
 		}
 	}
-	
+
 	MESSAGE_BEGIN( MSG_BROADCAST, SVC_TEMPENTITY );
 		WRITE_BYTE( message );
 		WRITE_COORD( pTrace->vecEndPos.x );
@@ -1654,11 +1657,9 @@ void UTIL_GunshotDecalTrace( TraceResult *pTrace, int decalNumber )
 		return;
 
 	int index = gDecals[ decalNumber ].index;
-	if ( index < 0 )
-		return;
+	if ( index < 0 ) return;
 
-	if (pTrace->flFraction == 1.0)
-		return;
+	if (pTrace->flFraction == 1.0) return;
 
 	MESSAGE_BEGIN( MSG_PAS, SVC_TEMPENTITY, pTrace->vecEndPos );
 		WRITE_BYTE( TE_GUNSHOTDECAL );
@@ -3000,4 +3001,97 @@ int HaveCamerasInPVS( edict_t* edict )
 		}
 	}
 	return 0;
+}
+
+Vector UTIL_GetMirrorOrigin(CBaseEntity *pMirror, Vector pos)
+{
+	Vector result = pos;
+
+	switch ((int)pMirror->pev->frags)
+	{
+	case 0:
+		result[0] = pMirror->pev->origin[0]*2 - pos[0];
+		break;
+	case 1:
+		result[1] = pMirror->pev->origin[1]*2 - pos[1];
+		break;
+	case 2:
+	default:
+		result[2] = pMirror->pev->origin[2]*2 - pos[2];
+		break;
+	}
+	return result;
+}
+
+Vector UTIL_GetMirrorAngles (CBaseEntity *pMirror, Vector angles )
+{
+	Vector result = angles;
+	switch ((int)pMirror->pev->frags)
+	{
+	case 0:
+		result[0] = -result[0]; 
+		break;
+	case 1:
+		result[1] = -result[1]; 
+		break;
+	case 2:
+	default:
+		result[2] = -result[2]; 
+		break;
+	}
+	return result;
+}
+
+Vector UTIL_MirrorVector( Vector angles )
+{
+	Vector result = angles;
+	edict_t *pFind; 
+          int numMirrors = 0;
+	
+	pFind = FIND_ENTITY_BY_CLASSNAME( NULL, "env_mirror" );
+          
+	while ( !FNullEnt( pFind ) )
+	{
+		CBaseEntity *pMirror = CBaseEntity::Instance( pFind );
+                    
+		if(numMirrors > 32) break;
+		if ( pMirror )
+		{
+			numMirrors++;
+			if(!pMirror->pev->impulse) continue;
+			result = UTIL_GetMirrorAngles(pMirror, angles);
+		}
+		pFind = FIND_ENTITY_BY_CLASSNAME( pFind, "env_mirror" );
+	}
+	return result;
+}
+
+Vector UTIL_MirrorPos ( Vector endpos )
+{
+	Vector mirpos(0, 0, 0);
+	edict_t *pFind; 
+          int numMirrors = 0;
+	
+	pFind = FIND_ENTITY_BY_CLASSNAME( NULL, "env_mirror" );
+
+	while ( !FNullEnt( pFind ) )
+	{
+		CBaseEntity *pMirror = CBaseEntity::Instance( pFind );
+                    
+                    if(numMirrors > 32) break;
+		if ( pMirror )
+		{
+			numMirrors++;
+			if(!pMirror->pev->impulse) continue;
+			Vector delta;
+			float dist;
+		
+			delta = pMirror->Center() - endpos;
+			dist = delta.Length();
+			if(pMirror->pev->waterlevel < dist) continue;
+			mirpos = UTIL_GetMirrorOrigin(pMirror, endpos);
+		}
+		pFind = FIND_ENTITY_BY_CLASSNAME( pFind, "env_mirror" );
+	}
+	return mirpos;
 }
